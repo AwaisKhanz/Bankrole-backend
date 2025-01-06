@@ -30,22 +30,29 @@ exports.addBet = async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 };
-
 exports.updateBet = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const existingBet = await Bet.findOne({ _id: id, userId: req.user._id });
+
+    if (!existingBet) {
+      return res.status(404).json({ message: "Bet not found" });
+    }
+
     const updateData = {
       ...req.body,
-      verificationStatus: "Pending",
     };
+
+    if (req.body.verificationCode && req.body.verificationCode !== existingBet.verificationCode) {
+      updateData.verificationStatus = "Pending";
+    }
+
     const updatedBet = await Bet.findOneAndUpdate(
       { _id: id, userId: req.user._id },
       updateData,
       { new: true }
     );
-
-    if (!updatedBet) return res.status(404).json({ message: "Bet not found" });
 
     res
       .status(200)
@@ -54,6 +61,7 @@ exports.updateBet = async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 };
+
 
 exports.deleteBet = async (req, res) => {
   try {

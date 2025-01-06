@@ -1,3 +1,4 @@
+require('dotenv').config();
 const stripe = require("../config/stripe");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
