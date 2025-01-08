@@ -1,4 +1,4 @@
-require('dotenv').config();
+require("dotenv").config();
 
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
@@ -119,7 +119,7 @@ exports.getAllUsers = async (req, res) => {
       }, // Join bankrolls
       {
         $lookup: {
-          from: "bettings",
+          from: "bets",
           localField: "_id",
           foreignField: "userId",
           as: "bettings",
