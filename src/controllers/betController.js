@@ -1,6 +1,7 @@
 const Bet = require("../models/Bet");
 const User = require("../models/User");
 const Bankroll = require("../models/Bankroll");
+const imagekit = require("../config/imagekit");
 
 exports.getBets = async (req, res) => {
   try {
@@ -15,10 +16,34 @@ exports.getBets = async (req, res) => {
 exports.addBet = async (req, res) => {
   try {
     const { bankrollId, ...betData } = req.body;
+    let imageUrl;
+
+    if (req.file) {
+      const folderPath = `/users/${req.user._id}/bets/verification`;
+
+      const uploadResponse = await imagekit
+        .upload({
+          file: req.file.buffer,
+          fileName: `verification-${Date.now()}.jpg`,
+          folder: folderPath,
+        })
+        .catch((err) => {
+          console.log(err, "imageerror");
+        });
+
+      imageUrl = uploadResponse.url;
+      imageFileId = uploadResponse.fileId;
+    } else {
+      return res
+        .status(400)
+        .json({ message: "Verification image is required." });
+    }
+
     const newBet = await Bet.create({
       ...betData,
       bankrollId,
       userId: req.user._id,
+      verificationImageUrl: imageUrl,
     });
 
     await Bankroll.findByIdAndUpdate(bankrollId, {
@@ -27,24 +52,42 @@ exports.addBet = async (req, res) => {
 
     res.status(201).json({ message: "Bet created successfully", bet: newBet });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    console.error("Error in addBet:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 exports.updateBet = async (req, res) => {
   try {
     const { id } = req.params;
 
     const existingBet = await Bet.findOne({ _id: id, userId: req.user._id });
-
     if (!existingBet) {
       return res.status(404).json({ message: "Bet not found" });
     }
 
-    const updateData = {
-      ...req.body,
-    };
+    const updateData = { ...req.body };
 
-    if (req.body.verificationCode && req.body.verificationCode !== existingBet.verificationCode) {
+    if (req.file) {
+      if (existingBet.verificationImageFileId) {
+        try {
+          await imagekit.deleteFile(existingBet.verificationImageFileId);
+          console.log("Previous verification image deleted.");
+        } catch (deleteError) {
+          console.error("Error deleting old image:", deleteError.message);
+        }
+      }
+
+      const folderPath = `/users/${req.user._id}/bets/verification`;
+
+      const uploadResponse = await imagekit.upload({
+        file: req.file.buffer,
+        fileName: `verification-${Date.now()}.jpg`,
+        folder: folderPath,
+      });
+
+      updateData.verificationImageUrl = uploadResponse.url;
+      updateData.verificationImageFileId = uploadResponse.fileId;
       updateData.verificationStatus = "Pending";
     }
 
@@ -58,24 +101,32 @@ exports.updateBet = async (req, res) => {
       .status(200)
       .json({ message: "Bet updated successfully", bet: updatedBet });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    console.error("Error in updateBet:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
 
 exports.deleteBet = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedBet = await Bet.findOneAndDelete({
-      _id: id,
-      userId: req.user._id,
-    });
 
-    if (!deletedBet) return res.status(404).json({ message: "Bet not found" });
+    // Find the bet first to access the image file ID
+    const bet = await Bet.findOne({ _id: id, userId: req.user._id });
 
-    res.status(200).json({ message: "Bet deleted successfully" });
+    if (!bet) {
+      return res.status(404).json({ message: "Bet not found" });
+    }
+
+    if (bet.verificationImageFileId) {
+      await imagekit.deleteFile(bet.verificationImageFileId);
+    }
+
+    await Bet.findOneAndDelete({ _id: id, userId: req.user._id });
+
+    res.status(200).json({ message: "Bet and its image deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    console.error("Error in deleteBet:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -86,7 +137,6 @@ exports.getAllBetsForAdmin = async (req, res) => {
     const pageSize = Number(limit) || 10;
     const currentPage = Number(page) || 1;
 
-    // Build search query
     const query = search
       ? {
           $or: [

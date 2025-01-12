@@ -18,6 +18,9 @@ const userSchema = new mongoose.Schema(
       customerId: { type: String },
       subscriptionId: { type: String },
     },
+    // Password Reset Fields
+    resetPasswordToken: { type: String },
+    resetPasswordExpire: { type: Date },
   },
   { timestamps: true }
 );

@@ -5,6 +5,9 @@ const {
   getProfile,
   getAllUsers,
   deleteUser,
+  forgotPassword,
+  resetPassword,
+  updateProfile,
 } = require("../controllers/authController");
 const { validateRegistration, validateLogin } = require("../utils/validators");
 const { validate } = require("../middlewares/validationMiddleware");
@@ -27,5 +30,12 @@ router.get("/users", authenticate, adminOnly, getAllUsers);
 
 // Delete user (Admin only)
 router.delete("/users/:id", authenticate, adminOnly, deleteUser);
+
+// Password reset
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
+
+// Update user profile (email/username)
+router.put("/update-profile", authenticate, updateProfile);
 
 module.exports = router;
