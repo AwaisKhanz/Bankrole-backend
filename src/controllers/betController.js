@@ -150,12 +150,19 @@ exports.getAllBetsForAdmin = async (req, res) => {
 
     const bets = await Bet.find(query)
       .populate("userId", "username email")
-      .populate("bankrollId", "name startingCapital currency")
+      .populate({
+        path: "bankrollId",
+        select: "name startingCapital currency visibility",
+        match: { visibility: "Public" },
+      })
       .skip((currentPage - 1) * pageSize)
       .limit(pageSize);
 
+    // ✅ Filter out bets where the bankroll is not public (null after populate)
+    const publicBets = bets.filter((bet) => bet.bankrollId !== null);
+
     res.status(200).json({
-      bets,
+      bets: publicBets,
       totalBets,
       totalPages: Math.ceil(totalBets / pageSize),
       currentPage,

@@ -38,12 +38,15 @@ exports.calculateBankrollStats = (bankroll) => {
 
   const pendingBetsCount = modifiedBets.filter((bet) => !bet.isVerified).length;
 
+  const isVerified = pendingBetsCount === 0 && modifiedBets.length > 0;
+
   return {
     totalStakes,
     totalProfit: totalProfit.toFixed(2),
     roi: roi.toFixed(2),
     progression: progression.toFixed(2),
     pendingBetsCount,
-    modifiedBets, // Include the modified bets with gain and profit
+    modifiedBets,
+    isVerified,
   };
 };

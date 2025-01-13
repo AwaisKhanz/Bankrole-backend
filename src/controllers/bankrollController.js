@@ -61,7 +61,6 @@ exports.addBankroll = async (req, res) => {
 
     await newBankroll.save();
 
-
     const { modifiedBets, ...stats } = calculateBankrollStats(newBankroll);
 
     const bankrollWithStats = {
@@ -83,18 +82,22 @@ exports.updateBankroll = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check for public visibility change
     if (req.body.visibility === "Public") {
       const existingPublicBankroll = await Bankroll.findOne({
         userId: req.user._id,
         visibility: "Public",
-        _id: { $ne: id }, // Exclude the current bankroll being updated
+        _id: { $ne: id },
       });
 
       if (existingPublicBankroll) {
         return res.status(400).json({
           message: "You can only have one public bankroll at a time.",
         });
+      }
+
+      const currentBankroll = await Bankroll.findById(id);
+      if (currentBankroll.visibility === "Private") {
+        await Bet.deleteMany({ bankrollId: id });
       }
     }
 
@@ -114,9 +117,8 @@ exports.updateBankroll = async (req, res) => {
     )
       .populate("bets") // Populate the associated bets
       .exec(); // Ensure the query is executed
-    
 
-    console.log(updatedBankroll)
+    console.log(updatedBankroll);
 
     if (!updatedBankroll)
       return res.status(404).json({ message: "Bankroll not found" });
@@ -134,11 +136,10 @@ exports.updateBankroll = async (req, res) => {
       bankroll: bankrollWithStats,
     });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({ message: "Server error", error });
   }
 };
-
 
 exports.deleteBankroll = async (req, res) => {
   try {
@@ -154,12 +155,13 @@ exports.deleteBankroll = async (req, res) => {
 
     await Bankroll.findByIdAndDelete(id);
 
-    res.status(200).json({ message: "Bankroll and associated bets deleted successfully" });
+    res
+      .status(200)
+      .json({ message: "Bankroll and associated bets deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
   }
 };
-
 
 exports.getBankrollById = async (req, res) => {
   try {
