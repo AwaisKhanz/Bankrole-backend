@@ -132,19 +132,20 @@ exports.deleteBet = async (req, res) => {
 
 exports.getAllBetsForAdmin = async (req, res) => {
   try {
-    const { search = "", limit = 10, page = 1 } = req.query;
+    const { search = "", limit = 10, page = 1, verificationStatus } = req.query;
 
     const pageSize = Number(limit) || 10;
     const currentPage = Number(page) || 1;
 
-    const query = search
-      ? {
-          $or: [
-            { sport: { $regex: search, $options: "i" } },
-            { label: { $regex: search, $options: "i" } },
-          ],
-        }
-      : {};
+    const query = {
+      ...(search && {
+        $or: [
+          { sport: { $regex: search, $options: "i" } },
+          { label: { $regex: search, $options: "i" } },
+        ],
+      }),
+      ...(verificationStatus && { verificationStatus }),
+    };
 
     const totalBets = await Bet.countDocuments(query);
 
@@ -158,7 +159,6 @@ exports.getAllBetsForAdmin = async (req, res) => {
       .skip((currentPage - 1) * pageSize)
       .limit(pageSize);
 
-    // ✅ Filter out bets where the bankroll is not public (null after populate)
     const publicBets = bets.filter((bet) => bet.bankrollId !== null);
 
     res.status(200).json({
