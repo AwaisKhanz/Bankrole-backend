@@ -37,7 +37,7 @@ router.post(
   "/",
   authenticate,
   upload.single("verificationImage"),
-  // validate(validateBet),
+  validate(validateBet),
   addBet
 );
 

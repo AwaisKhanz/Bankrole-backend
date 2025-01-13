@@ -33,10 +33,6 @@ exports.addBet = async (req, res) => {
 
       imageUrl = uploadResponse.url;
       imageFileId = uploadResponse.fileId;
-    } else {
-      return res
-        .status(400)
-        .json({ message: "Verification image is required." });
     }
 
     const newBet = await Bet.create({

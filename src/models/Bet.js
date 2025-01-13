@@ -18,7 +18,7 @@ const betSchema = new mongoose.Schema(
     stake: { type: Number, required: true },
     odds: { type: Number, required: true },
     verificationImageFileId: { type: String },
-    verificationImageUrl: { type: String, required: true },
+    verificationImageUrl: { type: String, required: false },
     isVerified: { type: Boolean, default: false },
     verificationStatus: {
       type: String,

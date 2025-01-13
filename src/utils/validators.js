@@ -31,20 +31,3 @@ exports.validateBet = [
   body("stake").isNumeric().withMessage("Stake must be a number"),
   body("odds").isNumeric().withMessage("Odds must be a number"),
 ];
-
-// ✅ Custom middleware for image validation
-exports.validateBetImage = (req, res, next) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "Verification image is required." });
-  }
-
-  // Optional: Validate image type
-  const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
-  if (!allowedTypes.includes(req.file.mimetype)) {
-    return res.status(400).json({
-      message: "Invalid image format. Only JPEG, PNG, and JPG are allowed.",
-    });
-  }
-
-  next();
-};
