@@ -1,5 +1,6 @@
 exports.calculateBankrollStats = (bankroll) => {
-  const modifiedBets = bankroll.bets.map((bet) => {
+  // First, modify all bets to ensure consistency
+  const allModifiedBets = bankroll.bets.map((bet) => {
     let gain = 0;
     let profit = 0;
 
@@ -12,20 +13,29 @@ exports.calculateBankrollStats = (bankroll) => {
     }
 
     return {
-      ...bet.toObject(), // Ensure we're working with plain objects
+      ...bet.toObject(),
       gain: gain.toFixed(2),
       profit: profit.toFixed(2),
     };
   });
 
-  const verifiedBets = modifiedBets.filter((bet) => bet.isVerified);
+  // ✅ Filter bets for calculation:
+  // - If Public -> Only include "Accepted" & Verified bets for stats
+  // - If Private -> Include all bets in stats
+  const filteredBets =
+    bankroll.visibility === "Public"
+      ? allModifiedBets.filter(
+          (bet) => bet.verificationStatus === "Accepted" && bet.isVerified
+        )
+      : allModifiedBets;
 
-  const totalStakes = verifiedBets.reduce(
+  // ✅ Calculate statistics only on filtered bets
+  const totalStakes = filteredBets.reduce(
     (sum, bet) => sum + (bet.stake || 0),
     0
   );
 
-  const totalProfit = verifiedBets.reduce(
+  const totalProfit = filteredBets.reduce(
     (sum, bet) => sum + parseFloat(bet.profit),
     0
   );
@@ -36,17 +46,22 @@ exports.calculateBankrollStats = (bankroll) => {
       ? (totalProfit / bankroll.startingCapital) * 100
       : 0;
 
-  const pendingBetsCount = modifiedBets.filter((bet) => !bet.isVerified).length;
+  const pendingBetsCount = allModifiedBets.filter(
+    (bet) => bet.verificationStatus !== "Accepted"
+  ).length;
 
-  const isVerified = pendingBetsCount === 0 && modifiedBets.length > 0;
+  const isVerified =
+    bankroll.visibility === "Public"
+      ? pendingBetsCount === 0 && filteredBets.length > 0
+      : true;
 
   return {
-    totalStakes,
+    totalStakes: totalStakes.toFixed(2),
     totalProfit: totalProfit.toFixed(2),
     roi: roi.toFixed(2),
     progression: progression.toFixed(2),
     pendingBetsCount,
-    modifiedBets,
+    modifiedBets: allModifiedBets, // ✅ Includes ALL bets
     isVerified,
   };
 };
