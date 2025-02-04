@@ -207,6 +207,7 @@ exports.getTopBankrolls = async (req, res) => {
     const rankedBankrolls = bankrolls.map((bankroll) => {
       const verifiedBets = bankroll.bets.filter((bet) => bet.isVerified);
 
+      // Total stakes and profit
       const totalStakes = verifiedBets.reduce(
         (sum, bet) => sum + (bet.stake || 0),
         0
@@ -222,20 +223,55 @@ exports.getTopBankrolls = async (req, res) => {
         return sum;
       }, 0);
 
-      const profitPercentage =
-        totalStakes > 0 ? (totalProfit / totalStakes) * 100 : 0;
+      // ROI (Return on Investment)
+      const roi = totalStakes > 0 ? (totalProfit / totalStakes) * 100 : 0;
+
+      // Winning Rate
+      const totalBets = verifiedBets.length;
+      const wonBets = verifiedBets.filter((bet) => bet.status === "Won").length;
+      const winningRate = totalBets > 0 ? (wonBets / totalBets) * 100 : 0;
+
+      // % of Status Bet Distribution (Won/Loss/Void/Cash Out)
+      const statusBetDistribution = verifiedBets.reduce(
+        (acc, bet) => {
+          acc[bet.status] = (acc[bet.status] || 0) + 1;
+          return acc;
+        },
+        { Won: 0, Loss: 0, Void: 0, "Cash Out": 0 }
+      );
+
+      // % of Sport Bet Distribution (Football, Tennis, etc.)
+      const sportBetDistribution = verifiedBets.reduce(
+        (acc, bet) => {
+          acc[bet.sport] = (acc[bet.sport] || 0) + 1;
+          return acc;
+        },
+        {
+          Football: 0,
+          Tennis: 0,
+          Basketball: 0,
+          Volleyball: 0,
+          "American Football": 0,
+          "Ice Hockey": 0,
+          "Other Sport": 0,
+        }
+      );
 
       return {
         ...bankroll.toObject(),
         stats: {
           totalStakes: totalStakes.toFixed(2),
           totalProfit: totalProfit.toFixed(2),
-          profitPercentage: profitPercentage.toFixed(2),
+          profitPercentage: roi.toFixed(2), // ROI is the same as profitPercentage
+          roi: roi.toFixed(2), // ROI
+          winningRate: winningRate.toFixed(2), // Winning Rate
+          statusBetDistribution, // % of Status Bet Distribution
+          sportBetDistribution, // % of Sport Bet Distribution
         },
       };
     });
 
-    // Sort bankrolls by profit percentage in descending order
+    // Sort bankrolls by profit percentage (ROI) in descending order
     rankedBankrolls.sort(
       (a, b) =>
         parseFloat(b.stats.profitPercentage) -
