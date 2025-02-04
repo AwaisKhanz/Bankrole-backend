@@ -67,6 +67,7 @@ exports.updateBet = async (req, res) => {
     // ✅ Set verificationStatus to "Pending" if status is changed
     if (req.body.status && req.body.status !== existingBet.status) {
       updateData.verificationStatus = "Pending";
+      updateData.isVerified = false;
     }
 
     if (req.file) {

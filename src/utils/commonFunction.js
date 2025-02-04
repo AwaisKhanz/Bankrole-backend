@@ -62,6 +62,6 @@ exports.calculateBankrollStats = (bankroll) => {
     progression: progression.toFixed(2),
     pendingBetsCount,
     modifiedBets: allModifiedBets, // ✅ Includes ALL bets
-    isVerified,
+    isVerified: bankroll.visibility === "Public" && isVerified,
   };
 };
