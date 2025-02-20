@@ -19,6 +19,12 @@ const betSchema = new mongoose.Schema(
     odds: { type: Number, required: true },
     verificationImageFileId: { type: String },
     verificationImageUrl: { type: String, required: false },
+
+    // Cashout
+    cashoutImageFileId: { type: String },
+    cashoutImageUrl: { type: String, required: false },
+    cashoutAmount: { type: Number, required: false },
+
     isVerified: { type: Boolean, default: false },
     verificationStatus: {
       type: String,
@@ -27,7 +33,7 @@ const betSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Won", "Loss"],
+      enum: ["Pending", "Won", "Loss", "Cashout", "Void"],
       default: "Pending",
     },
   },

@@ -16,30 +16,45 @@ exports.getBets = async (req, res) => {
 exports.addBet = async (req, res) => {
   try {
     const { bankrollId, ...betData } = req.body;
-    let imageUrl;
+    let verificationImageUrl;
+    let verificationImageFileId;
+    let cashoutImageUrl;
+    let cashoutImageFileId;
 
-    if (req.file) {
+    console.log(req.files);
+    // Handle verification image upload
+    if (req.files && req.files["verificationImage"]) {
       const folderPath = `/users/${req.user._id}/bets/verification`;
+      const uploadResponse = await imagekit.upload({
+        file: req.files["verificationImage"][0].buffer,
+        fileName: `verification-${Date.now()}.jpg`,
+        folder: folderPath,
+      });
+      verificationImageUrl = uploadResponse.url;
+      verificationImageFileId = uploadResponse.fileId;
+    }
 
-      const uploadResponse = await imagekit
-        .upload({
-          file: req.file.buffer,
-          fileName: `verification-${Date.now()}.jpg`,
-          folder: folderPath,
-        })
-        .catch((err) => {
-          console.log(err, "imageerror");
-        });
-
-      imageUrl = uploadResponse.url;
-      imageFileId = uploadResponse.fileId;
+    // Handle cashout image upload
+    if (req.files && req.files["cashoutImage"]) {
+      const folderPath = `/users/${req.user._id}/bets/cashout`;
+      const uploadResponse = await imagekit.upload({
+        file: req.files["cashoutImage"][0].buffer,
+        fileName: `cashout-${Date.now()}.jpg`,
+        folder: folderPath,
+      });
+      cashoutImageUrl = uploadResponse.url;
+      cashoutImageFileId = uploadResponse.fileId;
     }
 
     const newBet = await Bet.create({
       ...betData,
       bankrollId,
       userId: req.user._id,
-      verificationImageUrl: imageUrl,
+      verificationImageUrl,
+      verificationImageFileId,
+      cashoutImageUrl,
+      cashoutImageFileId,
+      cashoutAmount: betData?.cashoutAmount || 0,
     });
 
     await Bankroll.findByIdAndUpdate(bankrollId, {
@@ -70,6 +85,7 @@ exports.updateBet = async (req, res) => {
       updateData.isVerified = false;
     }
 
+    // Handle verification image upload
     if (req.file) {
       if (existingBet.verificationImageFileId) {
         try {
@@ -91,6 +107,37 @@ exports.updateBet = async (req, res) => {
       updateData.verificationImageUrl = uploadResponse.url;
       updateData.verificationImageFileId = uploadResponse.fileId;
       updateData.verificationStatus = "Pending";
+    }
+
+    // Handle cashout image upload
+    if (req.body.cashoutImage) {
+      if (existingBet.cashoutImageFileId) {
+        try {
+          await imagekit.deleteFile(existingBet.cashoutImageFileId);
+          console.log("Previous cashout image deleted.");
+        } catch (deleteError) {
+          console.error(
+            "Error deleting old cashout image:",
+            deleteError.message
+          );
+        }
+      }
+
+      const folderPath = `/users/${req.user._id}/bets/cashout`;
+
+      const uploadResponse = await imagekit.upload({
+        file: req.body.cashoutImage.buffer,
+        fileName: `cashout-${Date.now()}.jpg`,
+        folder: folderPath,
+      });
+
+      updateData.cashoutImageUrl = uploadResponse.url;
+      updateData.cashoutImageFileId = uploadResponse.fileId;
+    }
+
+    // Include cashoutAmount if provided
+    if (req.body?.cashoutAmount !== undefined) {
+      updateData.cashoutAmount = req.body.cashoutAmount;
     }
 
     const updatedBet = await Bet.findOneAndUpdate(

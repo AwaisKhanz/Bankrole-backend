@@ -4,12 +4,26 @@ exports.calculateBankrollStats = (bankroll) => {
     let gain = 0;
     let profit = 0;
 
-    if (bet.status === "Won") {
-      gain = bet.odds * bet.stake;
-      profit = gain - bet.stake;
-    } else if (bet.status === "Loss") {
-      gain = 0;
-      profit = -bet.stake;
+    switch (bet.status) {
+      case "Won":
+        gain = bet.odds * bet.stake;
+        profit = gain - bet.stake;
+        break;
+      case "Loss":
+        gain = 0;
+        profit = -bet.stake;
+        break;
+      case "Cashout":
+        gain = bet.odds * bet.stake;
+        profit = gain - bet.stake;
+        gain = gain - bet.cashoutAmount;
+        profit = profit - bet.cashoutAmount;
+        break;
+      case "Pending":
+      case "Void":
+        gain = 0;
+        profit = 0;
+        break;
     }
 
     return {

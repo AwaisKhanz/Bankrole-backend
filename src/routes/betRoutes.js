@@ -32,20 +32,26 @@ router.put("/admin/reject/:id", authenticate, adminOnly, rejectBet);
 // Fetch bets by bankroll (User Only)
 router.get("/:bankrollId", authenticate, getBets);
 
-// Add a new bet with image upload (User Only)
+// Add a new bet with multiple image uploads (User Only)
 router.post(
   "/",
   authenticate,
-  upload.single("verificationImage"),
+  upload.fields([
+    { name: "verificationImage", maxCount: 1 },
+    { name: "cashoutImage", maxCount: 1 },
+  ]),
   validate(validateBet),
   addBet
 );
 
-// Update a bet with optional image upload (User Only)
+// Update a bet with multiple image uploads (User Only)
 router.put(
   "/:id",
   authenticate,
-  upload.single("verificationImage"), // Allow updating the image
+  upload.fields([
+    { name: "verificationImage", maxCount: 1 },
+    { name: "cashoutImage", maxCount: 1 },
+  ]),
   validate(validateBet),
   updateBet
 );
