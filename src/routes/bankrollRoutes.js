@@ -19,6 +19,6 @@ router.post("/", authenticate, validate(validateBankroll), addBankroll);
 router.put("/:id", authenticate, validate(validateBankroll), updateBankroll);
 router.delete("/:id", authenticate, deleteBankroll);
 router.get("/top", authenticate, getTopBankrolls); // Moved before `/:id`
-router.get("/:id", authenticate, getBankrollById);
+router.get("/:id", getBankrollById);
 
 module.exports = router;

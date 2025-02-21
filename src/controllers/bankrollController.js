@@ -31,7 +31,8 @@ exports.getBankrolls = async (req, res) => {
 
 exports.addBankroll = async (req, res) => {
   try {
-    const { name, startingCapital, visibility, currency } = req.body;
+    const { name, startingCapital, visibility, currency, isShareable } =
+      req.body;
 
     if (!currency || !currency.code || !currency.label || !currency.symbol) {
       return res.status(400).json({ message: "Invalid currency data" });
@@ -57,9 +58,16 @@ exports.addBankroll = async (req, res) => {
       visibility,
       currency,
       userId: req.user._id,
+      isShareable: isShareable || false,
     });
 
     await newBankroll.save();
+
+    // Assign the shareableLink after _id is generated
+    if (isShareable) {
+      newBankroll.shareableLink = `${process.env.FRONTEND_URL}/bankroll/view/${newBankroll._id}`;
+      await newBankroll.save();
+    }
 
     const { modifiedBets, ...stats } = calculateBankrollStats(newBankroll);
 
@@ -81,8 +89,9 @@ exports.addBankroll = async (req, res) => {
 exports.updateBankroll = async (req, res) => {
   try {
     const { id } = req.params;
+    const { isShareable, visibility } = req.body;
 
-    if (req.body.visibility === "Public") {
+    if (visibility === "Public") {
       const existingPublicBankroll = await Bankroll.findOne({
         userId: req.user._id,
         visibility: "Public",
@@ -112,13 +121,17 @@ exports.updateBankroll = async (req, res) => {
 
     const updatedBankroll = await Bankroll.findOneAndUpdate(
       { _id: id, userId: req.user._id },
-      req.body,
+      {
+        ...req.body,
+        isShareable: isShareable || false,
+        shareableLink: isShareable
+          ? `${process.env.FRONTEND_URL}/bankroll/view/${id}`
+          : null,
+      },
       { new: true }
     )
       .populate("bets") // Populate the associated bets
       .exec(); // Ensure the query is executed
-
-    console.log(updatedBankroll);
 
     if (!updatedBankroll)
       return res.status(404).json({ message: "Bankroll not found" });
@@ -166,7 +179,7 @@ exports.deleteBankroll = async (req, res) => {
 exports.getBankrollById = async (req, res) => {
   try {
     const { id } = req.params;
-    const bankroll = await Bankroll.findOne({ _id: id, userId: req.user._id })
+    const bankroll = await Bankroll.findOne({ _id: id })
       .populate("bets")
       .exec();
 

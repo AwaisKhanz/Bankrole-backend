@@ -20,6 +20,8 @@ const bankrollSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    isShareable: { type: Boolean, default: false }, // Enable/disable sharing
+    shareableLink: { type: String, unique: true }, // Unique shareable link
   },
   { timestamps: true }
 );
