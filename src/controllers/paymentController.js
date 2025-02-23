@@ -1,4 +1,4 @@
-require('dotenv').config();
+require("dotenv").config();
 const stripe = require("../config/stripe");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
@@ -204,3 +204,66 @@ exports.handleWebhook = async (req, res) => {
 
   res.status(200).json({ received: true });
 };
+
+exports.getPaymentMethod = catchAsync(async (req, res, next) => {
+  const user = req.user;
+
+  if (!user.subscription?.customerId) {
+    return next(new AppError("No customer ID found for this user", 404));
+  }
+
+  const paymentMethods = await stripe.paymentMethods.list({
+    customer: user.subscription.customerId,
+    type: "card",
+  });
+
+  if (!paymentMethods.data.length) {
+    return res.status(200).json({ paymentMethod: null });
+  }
+
+  const defaultPaymentMethod = paymentMethods.data[0]; // Assuming first card is default
+  res.status(200).json({
+    paymentMethod: {
+      id: defaultPaymentMethod.id,
+      brand: defaultPaymentMethod.card.brand,
+      last4: defaultPaymentMethod.card.last4,
+      expMonth: defaultPaymentMethod.card.exp_month,
+      expYear: defaultPaymentMethod.card.exp_year,
+    },
+  });
+});
+
+exports.updatePaymentMethod = catchAsync(async (req, res, next) => {
+  const { paymentMethodId } = req.body;
+  const user = req.user;
+
+  if (!user.subscription?.customerId) {
+    return next(new AppError("No customer ID found for this user", 404));
+  }
+
+  // Attach the new payment method to the customer
+  await stripe.paymentMethods.attach(paymentMethodId, {
+    customer: user.subscription.customerId,
+  });
+
+  // Detach the old payment method (optional, only if you want to remove it)
+  const oldPaymentMethods = await stripe.paymentMethods.list({
+    customer: user.subscription.customerId,
+    type: "card",
+  });
+  if (oldPaymentMethods.data.length > 1) {
+    const oldMethod = oldPaymentMethods.data.find(
+      (pm) => pm.id !== paymentMethodId
+    );
+    if (oldMethod) {
+      await stripe.paymentMethods.detach(oldMethod.id);
+    }
+  }
+
+  // Update the default payment method for the customer
+  await stripe.customers.update(user.subscription.customerId, {
+    invoice_settings: { default_payment_method: paymentMethodId },
+  });
+
+  res.status(200).json({ message: "Payment method updated successfully" });
+});

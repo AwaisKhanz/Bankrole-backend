@@ -4,6 +4,8 @@ const {
   cancelSubscription,
   getSubscription,
   handleWebhook,
+  getPaymentMethod,
+  updatePaymentMethod,
 } = require("../controllers/paymentController");
 const { authenticate } = require("../middlewares/authMiddleware");
 
@@ -20,5 +22,8 @@ router.post(
   express.raw({ type: "application/json" }),
   handleWebhook
 );
+
+router.get("/payment-method", authenticate, getPaymentMethod); // New route
+router.post("/update-payment-method", authenticate, updatePaymentMethod); // New route
 
 module.exports = router;

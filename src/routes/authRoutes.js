@@ -35,7 +35,7 @@ router.delete("/users/:id", authenticate, adminOnly, deleteUser);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 
-// Update user profile (email/username)
-router.put("/update-profile", authenticate, updateProfile);
+// Update user profile (email/username/password)
+router.put("/profile", authenticate, updateProfile);
 
 module.exports = router;

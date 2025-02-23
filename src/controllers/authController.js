@@ -246,7 +246,7 @@ exports.resetPassword = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { username, email } = req.body;
+    const { username, email, password } = req.body;
 
     const user = await User.findById(req.user.id);
 
@@ -254,6 +254,7 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Check for duplicate username
     if (username && username !== user.username) {
       const existingUsername = await User.findOne({ username });
       if (existingUsername) {
@@ -262,6 +263,7 @@ exports.updateProfile = async (req, res) => {
       user.username = username;
     }
 
+    // Check for duplicate email
     if (email && email !== user.email) {
       const existingEmail = await User.findOne({ email });
       if (existingEmail) {
@@ -270,9 +272,27 @@ exports.updateProfile = async (req, res) => {
       user.email = email;
     }
 
+    // Update password if provided
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      user.password = hashedPassword;
+    }
+
     await user.save();
 
-    res.status(200).json({ message: "Profile updated successfully" });
+    // Return updated user data (excluding password)
+    const updatedUser = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      subscription: user.subscription,
+    };
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
