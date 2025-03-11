@@ -36,6 +36,11 @@ const betSchema = new mongoose.Schema(
       enum: ["Pending", "Won", "Loss", "Cashout", "Void"],
       default: "Pending",
     },
+    previousStatus: {
+      type: String,
+      enum: ["Pending", "Won", "Loss", "Cashout", "Void"],
+      default: null,
+    },
   },
   { timestamps: true }
 );

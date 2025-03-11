@@ -55,6 +55,7 @@ exports.addBet = async (req, res) => {
       cashoutImageUrl,
       cashoutImageFileId,
       cashoutAmount: betData?.cashoutAmount || 0,
+      previousStatus: null,
     });
 
     await Bankroll.findByIdAndUpdate(bankrollId, {
@@ -81,6 +82,7 @@ exports.updateBet = async (req, res) => {
 
     // ✅ Set verificationStatus to "Pending" if status is changed
     if (req.body.status && req.body.status !== existingBet.status) {
+      updateData.previousStatus = existingBet.status;
       updateData.verificationStatus = "Pending";
       updateData.isVerified = false;
     }
@@ -205,6 +207,7 @@ exports.getAllBetsForAdmin = async (req, res) => {
         select: "name startingCapital currency visibility",
         match: { visibility: "Public" },
       })
+      .sort({ createdAt: -1 })
       .skip((currentPage - 1) * pageSize)
       .limit(pageSize);
 
