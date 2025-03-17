@@ -9,6 +9,7 @@ const crypto = require("crypto");
 const stripe = require("../config/stripe");
 const { sendEmail } = require("../utils/emailService");
 const passwordResetTemplate = require("../utils/emailTemplates/passwordResetTemplate");
+const { calculateBankrollStats } = require("../utils/commonFunction");
 
 exports.register = async (req, res) => {
   try {
@@ -118,14 +119,50 @@ exports.getAllUsers = async (req, res) => {
           localField: "_id",
           foreignField: "userId",
           as: "bankrolls",
+          pipeline: [
+            {
+              $lookup: {
+                from: "bets",
+                localField: "_id",
+                foreignField: "bankrollId",
+                as: "bets",
+              },
+            },
+          ],
         },
-      }, // Join bankrolls
+      }, // Join bankrolls with full bet objects
       {
         $lookup: {
           from: "bets",
           localField: "_id",
           foreignField: "userId",
           as: "bettings",
+          pipeline: [
+            {
+              $lookup: {
+                from: "bankrolls",
+                localField: "bankrollId",
+                foreignField: "_id",
+                as: "bankrollData",
+              },
+            },
+            {
+              $unwind: {
+                path: "$bankrollData",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $addFields: {
+                bankrollVisibility: "$bankrollData.visibility",
+              },
+            },
+            {
+              $project: {
+                bankrollData: 0,
+              },
+            },
+          ],
         },
       }, // Join bettings
       { $skip: (currentPage - 1) * pageSize }, // Pagination skip
@@ -140,14 +177,30 @@ exports.getAllUsers = async (req, res) => {
     // Calculate total count separately
     const totalUsers = await User.countDocuments(matchStage);
 
+    const usersWithBankrollStats = usersWithDetails.map((user) => {
+      const bankrollsWithStats = user.bankrolls.map((bankroll) => {
+        const { modifiedBets, ...stats } = calculateBankrollStats(bankroll);
+        return {
+          ...bankroll, // Remove .toObject() since bankroll is already a plain object
+          bets: modifiedBets,
+          stats,
+        };
+      });
+      return {
+        ...user,
+        bankrolls: bankrollsWithStats,
+      };
+    });
+
     // Respond with data
     res.status(200).json({
-      users: usersWithDetails,
-      totalUsers, // Total number of users matching the query
-      totalPages: Math.ceil(totalUsers / pageSize), // Total number of pages
-      currentPage, // Current page
+      users: usersWithBankrollStats,
+      totalUsers,
+      totalPages: Math.ceil(totalUsers / pageSize),
+      currentPage,
     });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

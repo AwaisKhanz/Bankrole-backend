@@ -1,4 +1,5 @@
 exports.calculateBankrollStats = (bankroll) => {
+  console.log(bankroll);
   // First, modify all bets to ensure consistency
   const allModifiedBets = bankroll.bets.map((bet) => {
     let gain = 0;
@@ -26,8 +27,11 @@ exports.calculateBankrollStats = (bankroll) => {
         break;
     }
 
+    // Check if bet has toObject method; use it if available, otherwise use bet directly
+    const betObject = typeof bet.toObject === "function" ? bet.toObject() : bet;
+
     return {
-      ...bet.toObject(),
+      ...betObject,
       gain: gain.toFixed(2),
       profit: profit.toFixed(2),
     };
