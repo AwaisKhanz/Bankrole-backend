@@ -211,7 +211,7 @@ exports.getTopBankrolls = async (req, res) => {
     const bankrolls = await Bankroll.find({ visibility: "Public" })
       .populate({
         path: "bets",
-        match: { date: { $gte: startOfQuarter, $lte: endOfQuarter } }, // Filter bets in the quarter
+        match: { date: { $gte: startOfQuarter, $lte: endOfQuarter } },
       })
       .populate("userId", "username email")
       .exec();
@@ -227,13 +227,25 @@ exports.getTopBankrolls = async (req, res) => {
       );
 
       const totalProfit = verifiedBets.reduce((sum, bet) => {
-        if (bet.status === "Won") {
-          const gain = bet.stake * bet.odds;
-          return sum + (gain - bet.stake);
-        } else if (bet.status === "Loss") {
-          return sum - bet.stake;
+        let profit = 0;
+        switch (bet.status) {
+          case "Won":
+            const gain = bet.stake * bet.odds;
+            profit = gain - bet.stake;
+            break;
+          case "Loss":
+            profit = -bet.stake;
+            break;
+          case "Cashout":
+            const cashoutGain = bet.stake * bet.odds;
+            profit = cashoutGain - bet.stake - (bet.cashoutAmount || 0);
+            break;
+          case "Pending":
+          case "Void":
+            profit = 0;
+            break;
         }
-        return sum;
+        return sum + profit;
       }, 0);
 
       // ROI (Return on Investment)
@@ -275,11 +287,11 @@ exports.getTopBankrolls = async (req, res) => {
         stats: {
           totalStakes: totalStakes.toFixed(2),
           totalProfit: totalProfit.toFixed(2),
-          profitPercentage: roi.toFixed(2), // ROI is the same as profitPercentage
-          roi: roi.toFixed(2), // ROI
-          winningRate: winningRate.toFixed(2), // Winning Rate
-          statusBetDistribution, // % of Status Bet Distribution
-          sportBetDistribution, // % of Sport Bet Distribution
+          profitPercentage: roi.toFixed(2),
+          roi: roi.toFixed(2),
+          winningRate: winningRate.toFixed(2),
+          statusBetDistribution,
+          sportBetDistribution,
         },
       };
     });
