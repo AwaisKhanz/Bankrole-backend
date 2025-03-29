@@ -9,6 +9,7 @@ const crypto = require("crypto");
 const stripe = require("../config/stripe");
 const { sendEmail } = require("../utils/emailService");
 const passwordResetTemplate = require("../utils/emailTemplates/passwordResetTemplate");
+const welcomeTemplate = require("../utils/emailTemplates/welcomeTemplate");
 const { calculateBankrollStats } = require("../utils/commonFunction");
 
 exports.register = async (req, res) => {
@@ -45,6 +46,53 @@ exports.register = async (req, res) => {
     await newUser.save();
 
     res.status(201).json({ message: "User registered successfully" });
+  } catch (error) {
+    const errorMessage = error.message || "An unknown error occurred";
+    res.status(500).json({ message: errorMessage });
+  }
+};
+
+// Admin-initiated user registration
+exports.adminRegister = async (req, res) => {
+  try {
+    const { username, email, password, role } = req.body;
+
+    const existingUser = await User.findOne({
+      $or: [{ email }, { username }],
+    });
+
+    if (existingUser) {
+      if (existingUser.username === username) {
+        return res.status(400).json({ message: "Username already in use" });
+      }
+      if (existingUser.email === email) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({
+      username,
+      email,
+      password: hashedPassword,
+      role: role || "user", // Allow admin to set role, default to "user"
+      subscription: {
+        status: "active", // Lifetime subscription
+        planId: "lifetime", // Custom identifier for admin-created users
+        currentPeriodEnd: null, // No expiration
+        customerId: null, // No Stripe customer
+        subscriptionId: null, // No Stripe subscription
+      },
+    });
+
+    await newUser.save();
+
+    // Send welcome email to the new user
+    const welcomeContent = welcomeTemplate(username, email, password);
+    await sendEmail(email, "Welcome to Quantara!", welcomeContent);
+
+    res.status(201).json({ message: "User created successfully by admin" });
   } catch (error) {
     const errorMessage = error.message || "An unknown error occurred";
     res.status(500).json({ message: errorMessage });
@@ -346,6 +394,32 @@ exports.updateProfile = async (req, res) => {
       message: "Profile updated successfully",
       user: updatedUser,
     });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    // Validate role
+    if (!["user", "admin"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role provided" });
+    }
+
+    // Find the user
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update the role
+    user.role = role;
+    await user.save();
+
+    res.status(200).json({ message: "User role updated successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
