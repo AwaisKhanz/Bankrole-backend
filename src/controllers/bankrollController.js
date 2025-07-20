@@ -207,18 +207,22 @@ exports.getTopBankrolls = async (req, res) => {
     const startOfQuarter = moment().startOf("quarter").toDate();
     const endOfQuarter = moment().endOf("quarter").toDate();
 
-    // Find all public bankrolls with bets in the current quarter
+    // Find all public bankrolls and populate all bets
     const bankrolls = await Bankroll.find({ visibility: "Public" })
       .populate({
         path: "bets",
-        match: { date: { $gte: startOfQuarter, $lte: endOfQuarter } },
+        // No date filter here, get all bets
       })
       .populate("userId", "username email")
       .exec();
 
-    // Calculate stats for each bankroll
+    // Calculate stats for each bankroll (only bets in current quarter)
     const rankedBankrolls = bankrolls.map((bankroll) => {
-      const verifiedBets = bankroll.bets.filter((bet) => bet.isVerified);
+      // Only consider bets in the current quarter
+      const quarterBets = (bankroll.bets || []).filter(
+        (bet) => bet.date >= startOfQuarter && bet.date <= endOfQuarter
+      );
+      const verifiedBets = quarterBets.filter((bet) => bet.isVerified);
 
       // Total stakes and profit
       const totalStakes = verifiedBets.reduce(
