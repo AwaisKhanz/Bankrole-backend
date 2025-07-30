@@ -206,6 +206,13 @@ exports.getTopBankrolls = async (req, res) => {
     // Get the start and end of the current quarter
     const startOfQuarter = moment().startOf("quarter").toDate();
     const endOfQuarter = moment().endOf("quarter").toDate();
+    
+    console.log('Quarter date range:', {
+      startOfQuarter: startOfQuarter.toISOString(),
+      endOfQuarter: endOfQuarter.toISOString(),
+      currentDate: new Date().toISOString(),
+      quarter: moment().quarter()
+    });
 
     // Find all public bankrolls and populate all bets
     const bankrolls = await Bankroll.find({ visibility: "Public" })
@@ -215,14 +222,47 @@ exports.getTopBankrolls = async (req, res) => {
       })
       .populate("userId", "username email")
       .exec();
+      
+    console.log(`Found ${bankrolls.length} public bankrolls`);
+    const totalBets = bankrolls.reduce((sum, bankroll) => sum + (bankroll.bets?.length || 0), 0);
+    console.log(`Total bets across all bankrolls: ${totalBets}`);
 
     // Calculate stats for each bankroll (only bets in current quarter)
     const rankedBankrolls = bankrolls.map((bankroll) => {
       // Only consider bets in the current quarter
       const quarterBets = (bankroll.bets || []).filter(
-        (bet) => bet.date >= startOfQuarter && bet.date <= endOfQuarter
+        (bet) => {
+          const betDate = new Date(bet.date);
+          return betDate >= startOfQuarter && betDate <= endOfQuarter;
+        }
       );
-      const verifiedBets = quarterBets.filter((bet) => bet.isVerified);
+      
+      // Debug date filtering
+      if (bankroll.bets && bankroll.bets.length > 0) {
+        console.log(`Date filtering for bankroll ${bankroll._id}:`, {
+          totalBets: bankroll.bets.length,
+          quarterBets: quarterBets.length,
+          sampleBetDate: bankroll.bets[0].date,
+          sampleBetDateConverted: new Date(bankroll.bets[0].date),
+          startOfQuarter,
+          endOfQuarter
+        });
+      }
+      // Filter bets for calculation: Only include "Accepted" & Verified bets for public bankrolls
+      const verifiedBets = quarterBets.filter(
+        (bet) => bet.verificationStatus === "Accepted" && bet.isVerified
+      );
+
+      // Debug logging
+      console.log(`Bankroll ${bankroll._id}: Total bets: ${bankroll.bets?.length || 0}, Quarter bets: ${quarterBets.length}, Verified bets: ${verifiedBets.length}`);
+      if (quarterBets.length > 0) {
+        console.log('Sample quarter bet:', {
+          id: quarterBets[0]._id,
+          verificationStatus: quarterBets[0].verificationStatus,
+          isVerified: quarterBets[0].isVerified,
+          status: quarterBets[0].status
+        });
+      }
 
       // Total stakes and profit
       const totalStakes = verifiedBets.reduce(
@@ -254,6 +294,12 @@ exports.getTopBankrolls = async (req, res) => {
 
       // ROI (Return on Investment)
       const roi = totalStakes > 0 ? (totalProfit / totalStakes) * 100 : 0;
+      
+      console.log(`ROI calculation for bankroll ${bankroll._id}:`, {
+        totalStakes,
+        totalProfit,
+        roi
+      });
 
       // Winning Rate
       const totalBets = verifiedBets.length;
